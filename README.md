@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# JetJob
 
-## Getting Started
+Free internship alerts for students. JetJob reads thousands of new postings a day,
+classifies each one once with TypeSafe's Jev model, and emails each student the few
+that fit. It learns from every Interested / Not for me answer.
 
-First, run the development server:
+## Run it locally
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run ingest -- --boards=100   # fetch postings and classify them
+npm run dev                      # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+No accounts are needed for local development:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Missing | Local fallback |
+| --- | --- |
+| `DATABASE_URL` | Embedded Postgres (PGlite) in `./.data` |
+| `TYPESAFE_API_KEY` | Keyword stand-in for Jev (dev only, much less accurate) |
+| `RESEND_API_KEY` | Emails written as HTML to `./.outbox`; sign-in links shown on screen |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Stop `next dev` before running `npm run ingest`, because PGlite allows one process at a time.
+While the server is running, use `curl localhost:3000/api/cron/ingest` instead.
 
-## Learn More
+## How it works
 
-To learn more about Next.js, take a look at the following resources:
+```
+Simplify list ─┬─▶ harvest ATS slugs ─▶ Greenhouse / Lever / Ashby boards
+               ▼
+      normalize ─▶ dedupe (company+title+location) ─▶ jobs
+                                                       │
+                     Jev pass A: 11 typed questions, once per posting, shared by all users
+                                                       ▼
+                                                  job_features
+                                                       │
+  per user: hard filters in SQL ─▶ rank with learned weights ─▶ Jev pass B (fit, top 40 only)
+                                                       ▼
+                                  matches ─▶ /matches feed and daily digest email
+                                                       ▲
+                          feedback ─▶ one SGD step on the user's logistic model (free)
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `src/ingest`: source adapters and the ingest run
+- `src/jev`: question design (`questions.ts`), pass A (`classifyJob.ts`), pass B (`scoreFit.ts`)
+- `src/rank`: features, per-user model, ranking with exploration, feedback
+- `src/email`: digest and magic-link emails, and the digest runner
+- `src/app`: pages, server actions, cron routes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Cost
 
-## Deploy on Vercel
+Jev costs $42 per billion input tokens, and output is free. Pass A runs once per posting,
+not once per user. Pass B only runs on each user's shortlist. Learning is plain arithmetic.
+Run `npm run eval:jev` with a key to measure real tokens per posting and accuracy on a
+labeled sample.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Tests
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm test                 # unit: normalize, dedupe, tokens, learning direction
+npx playwright test      # e2e with the installed Chrome, including axe (light and dark)
+npm run eval:jev         # Jev pass A accuracy, cost and latency on live data
+```
+
+## Deploy
+
+Deploy to Vercel with the variables in `.env.example`. `vercel.json` schedules ingestion
+every 6 hours and digests daily.

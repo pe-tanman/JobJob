@@ -1,26 +1,179 @@
 @import "tailwindcss";
 
+/*
+  JetJob tokens: one light "daytime sky" theme (light only, by request).
+  One accent, clear-sky blue. Every text pair was checked for WCAG AA and
+  body text is AAA, including text over the cloud-photo wash.
+*/
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --sky-0: #f4f9fe; /* page, bottom of the sky */
+  --sky-1: #fbfdff; /* raised "cloud" surface */
+  --sky-2: #e2eefa; /* subtle fill, chips */
+  --sky-top: #cfe4f7; /* top of the sky gradient */
+  --line: #d3e2f1; /* decorative borders */
+  --line-strong: #6b819b; /* input borders, 3:1+ */
+  --ink: #0f2238;
+  --ink-muted: #3e526a;
+  --accent: #1f63bf;
+  --on-accent: #fdfeff;
+  --accent-ink: #1a58ae; /* accent-colored text and links */
+  --shadow: 31 99 191; /* blue-tinted shadows, never pure black */
+  color-scheme: light;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-sky-0: var(--sky-0);
+  --color-sky-1: var(--sky-1);
+  --color-sky-2: var(--sky-2);
+  --color-sky-top: var(--sky-top);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-accent-ink: var(--accent-ink);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  /* Shape rule: pills for buttons and chips, 16px cards, 12px inputs. */
+  --radius-card: 16px;
+  --radius-input: 12px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* z-index scale: page sky -1 (inside body), header 30, skip link 50. */
+
+html {
+  background: var(--sky-0);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  position: relative;
+  isolation: isolate;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/*
+  The sky behind every page: a fixed layer, so scrolling never repaints it.
+  Pale blue at the top of the window, almost white at the bottom.
+*/
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 60% at 85% -10%, rgb(255 255 255 / 0.75), transparent 60%),
+    linear-gradient(180deg, var(--sky-top) 0%, #e6f1fb 38%, var(--sky-0) 75%);
+}
+
+/* Visible, consistent focus for keyboard users on every interactive element. */
+:where(a, button, input, textarea, select, summary, [role="checkbox"], [role="radio"], [tabindex]):focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: inherit;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/*
+  Inner pages: a faint wash of the cloud photo behind the page heading.
+  At least 72% page colour over the photo, which keeps all text above AA.
+*/
+.sky-wash {
+  position: relative;
+  isolation: isolate;
+}
+.sky-wash::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 440px;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgb(244 249 254 / 0.72) 0%, rgb(244 249 254 / 0.86) 55%, rgb(244 249 254 / 0) 100%),
+    url("/hero-sky.jpg") center 30% / cover no-repeat;
+  mask-image: linear-gradient(180deg, #000 55%, transparent 100%);
+}
+@media (prefers-reduced-transparency: reduce) {
+  .sky-wash::before {
+    display: none;
+  }
+}
+
+@utility btn {
+  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-5 text-[15px] font-semibold whitespace-nowrap transition-[transform,background-color,border-color] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60;
+}
+@utility btn-primary {
+  @apply btn bg-accent text-on-accent hover:brightness-110;
+}
+@utility btn-quiet {
+  @apply btn border border-line-strong bg-sky-1/90 text-ink hover:bg-sky-2;
+}
+@utility btn-ghost {
+  @apply btn text-ink hover:bg-sky-2;
+}
+@utility field-label {
+  @apply text-[15px] font-medium text-ink;
+}
+@utility field-help {
+  @apply text-sm text-ink-muted;
+}
+@utility field-error {
+  @apply text-sm font-medium text-accent-ink;
+}
+@utility input {
+  @apply min-h-11 w-full rounded-[var(--radius-input)] border border-line-strong bg-sky-1 px-4 py-2.5 text-base text-ink placeholder:text-ink-muted;
+}
+@utility chip {
+  @apply inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-line-strong bg-sky-1 px-4 text-[15px] text-ink transition-colors hover:bg-sky-2 data-[state=checked]:border-accent data-[state=checked]:bg-accent data-[state=checked]:text-on-accent data-[state=on]:border-accent data-[state=on]:bg-accent data-[state=on]:text-on-accent;
+}
+@utility card {
+  @apply rounded-[var(--radius-card)] border border-white/80 bg-sky-1/80 shadow-[0_1px_2px_rgb(var(--shadow)/0.06),0_10px_30px_-14px_rgb(var(--shadow)/0.22)];
+  @media (prefers-reduced-transparency: reduce) {
+    background-color: var(--sky-1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Hero entry. Only animates for users who have not asked for reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .rise {
+    animation: rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: var(--rise-delay, 0s);
+  }
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+
+/* Scroll reveal: progressive enhancement, never hides content where unsupported. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .reveal {
+      animation: rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 60%;
+    }
+  }
 }
