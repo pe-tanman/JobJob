@@ -75,9 +75,10 @@ export type BrowseRow = {
   needsReview: boolean;
 };
 
-export async function browse(f: BrowseFilters, userId?: string) {
+/** `extra` adds conditions on top of the filters, e.g. from the single-box search. */
+export async function browse(f: BrowseFilters, userId?: string, extra: SQL[] = []) {
   const db = await getDb();
-  const base = baseWhere(f);
+  const base = [...baseWhere(f), ...extra];
   const where = f.roles.length ? [...base, inArray(jobFeatures.roleFamily, f.roles)] : base;
 
   const [rows, [{ total }], roleCounts, saved] = await Promise.all([

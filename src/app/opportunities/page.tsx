@@ -1,12 +1,12 @@
-import { ArrowSquareOut, CaretLeft, CaretRight, MagnifyingGlass } from "@phosphor-icons/react/dist/ssr";
+import { CaretLeft, CaretRight, MagnifyingGlass } from "@phosphor-icons/react/dist/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
 import { currentUser } from "@/lib/session";
-import { browse, PAGE_SIZE, parseFilters, type BrowseFilters, type BrowseRow } from "@/rank/browse";
+import { browse, PAGE_SIZE, parseFilters, type BrowseFilters } from "@/rank/browse";
 import { roleLabel } from "@/rank/features";
 import { FilterDisclosure } from "./FilterDisclosure";
-import { RowActions } from "./RowActions";
+import { MODE_LABEL, Row, SEASON_LABEL } from "./Row";
 
 export const metadata: Metadata = {
   title: "Browse internships",
@@ -33,22 +33,6 @@ const ROLE_ORDER = [
   "other",
 ];
 
-const SEASON_LABEL: Record<string, string> = {
-  summer: "Summer",
-  fall: "Fall term",
-  winter_spring: "Winter or spring",
-  year_round: "During the school year",
-};
-const MODE_LABEL: Record<string, string> = { onsite: "In person", hybrid: "Hybrid", remote: "Remote" };
-
-const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
-function posted(d: Date): string {
-  const days = Math.round((d.getTime() - Date.now()) / 86_400_000);
-  if (days > -1) return "Posted today";
-  if (days > -30) return `Posted ${rtf.format(days, "day")}`;
-  return `Posted ${rtf.format(Math.round(days / 30), "month")}`;
-}
-
 /** Build a URL for these filters with some values changed. */
 function hrefFor(f: BrowseFilters, patch: Partial<BrowseFilters>): string {
   const n = { ...f, ...patch };
@@ -72,51 +56,6 @@ function activeCount(f: BrowseFilters): number {
     f.roles.length +
     [f.q, f.season, f.mode, f.location].filter(Boolean).length +
     [f.paidOnly, f.sponsorship, f.noCitizenship].filter(Boolean).length
-  );
-}
-
-function Tag({ children }: { children: React.ReactNode }) {
-  return <li className="rounded-full bg-sky-2 px-2.5 py-1 text-[13px] leading-none font-medium text-ink-muted">{children}</li>;
-}
-
-function Row({ r, signedIn, saved }: { r: BrowseRow; signedIn: boolean; saved?: string }) {
-  const headingId = `op-${r.id}`;
-  return (
-    <li className="card grid gap-3 p-5" aria-labelledby={headingId}>
-      <div className="grid gap-1">
-        <h3 id={headingId} className="text-[17px] leading-snug font-semibold text-balance">
-          <a href={r.url} target="_blank" rel="noreferrer" className="underline-offset-4 hover:underline">
-            {r.title}
-            <ArrowSquareOut size={15} className="ml-1 inline align-[-2px] text-ink-muted" aria-hidden />
-            <span className="sr-only"> (opens in a new tab)</span>
-          </a>
-        </h3>
-        <p className="text-ink-muted">
-          {r.company}
-          {r.location ? `, ${r.location}` : r.remote ? ", Remote" : ""}
-        </p>
-      </div>
-      <ul className="flex flex-wrap gap-1.5" aria-label="Details">
-        <Tag>{roleLabel(r.roleFamily)}</Tag>
-        {SEASON_LABEL[r.season] && <Tag>{SEASON_LABEL[r.season]}</Tag>}
-        {MODE_LABEL[r.workMode] && <Tag>{MODE_LABEL[r.workMode]}</Tag>}
-        {r.paid === "paid" && <Tag>{r.payText ?? "Paid"}</Tag>}
-        {r.paid === "unpaid" && <Tag>Unpaid</Tag>}
-        {r.sponsorship === "offers" && <Tag>Sponsors visas</Tag>}
-        {r.sponsorship === "excludes" && <Tag>No visa sponsorship</Tag>}
-        {r.citizenshipRequired >= 0.6 && <Tag>US citizens only</Tag>}
-      </ul>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-ink-muted">{posted(r.postedAt ?? r.firstSeenAt)}</p>
-        {signedIn && (
-          <RowActions
-            jobId={r.id}
-            title={r.title}
-            initial={saved === "interested" || saved === "applied" ? "interested" : saved === "dismissed" ? "dismissed" : "none"}
-          />
-        )}
-      </div>
-    </li>
   );
 }
 
